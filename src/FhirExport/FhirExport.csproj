@@ -14,5 +14,9 @@
     <PackageReference Include="Microsoft.IdentityModel.Clients.ActiveDirectory" Version="3.19.8" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\FhirExportLib\FhirExportLib.csproj" />
+  </ItemGroup>
+
 
 </Project>
