@@ -41,6 +41,9 @@ namespace FhirExport
             Console.WriteLine($"Azure AD Client Secret  : {Configuration["AzureAD_ClientSecret"]}");
             Console.WriteLine($"Azure AD Audience       : {Configuration["AzureAD_Audience"]}");
             Console.WriteLine($"Output File             : {OutputFile}");
+            Console.WriteLine($"Blob connection string  : {Configuration["StorageConnectionString"]}");
+            Console.WriteLine($"Blob folder             : {Configuration["BlobFolder"]}");
+
 
             FhirAuth = new FhirAuthenticator(Configuration["AzureAD_Authority"], 
                                              Configuration["AzureAD_ClientId"], 
@@ -51,6 +54,14 @@ namespace FhirExport
             while (!String.IsNullOrEmpty(query)) 
             {
                 query = await FhirQuery.AppendQueryToFile(Configuration["FhirServerUrl"], query, OutputFile, FhirAuth);
+            }
+
+            if (!String.IsNullOrEmpty(Configuration["StorageConnectionString"]) &&
+                !String.IsNullOrEmpty(Configuration["BlobFolder"]))
+            {
+                await BlobUploader.UploadFileToBlob(Configuration["StorageConnectionString"],
+                                                    Configuration["BlobFolder"],
+                                                    OutputFile);
             }
         }
     }

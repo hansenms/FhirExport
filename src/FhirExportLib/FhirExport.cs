@@ -6,6 +6,10 @@ using System.Threading.Tasks;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Microsoft.Extensions.Configuration;
+
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace FhirExport
 {
@@ -83,6 +87,18 @@ namespace FhirExport
 
     public class BlobUploader
     {
-
+        public static async Task UploadFileToBlob(string blobConnectionString,
+                                            string blobFolderPath,
+                                            string filePath)
+        {
+            CloudStorageAccount outputStorageAccount = CloudStorageAccount.Parse(blobConnectionString);
+            var fileName = Path.GetFileName(filePath);
+            var outputBlobUri = new Uri(outputStorageAccount.BlobEndpoint + blobFolderPath + "/" + fileName);
+            var outputBlob = new CloudBlockBlob(outputBlobUri, outputStorageAccount.Credentials);
+            using (var fileStream = System.IO.File.OpenRead(filePath))
+            {
+                await outputBlob.UploadFromStreamAsync(fileStream);
+            }
+        }
     }
 }
