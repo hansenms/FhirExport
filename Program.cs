@@ -50,8 +50,11 @@ namespace FhirExport
             ClientCredential = new ClientCredential(Configuration["AzureAD_ClientId"], Configuration["AzureAD_ClientSecret"]); ;
             Audience = Configuration["AzureAD_Audience"];
 
-            long records = await AppendQueryToFile(Configuration["FhirServerUrl"], Configuration["FhirQuery"], OutputFile);
-            Console.WriteLine($"Records: {records}");
+            string query = Configuration["FhirQuery"];
+            while (!String.IsNullOrEmpty(query)) 
+            {
+                query = await AppendQueryToFile(Configuration["FhirServerUrl"], query, OutputFile);
+            }
         }
 
         private static AuthenticationResult GetAuthenticationResult()
@@ -59,7 +62,7 @@ namespace FhirExport
             return AuthContext.AcquireTokenAsync(Audience, ClientCredential).Result;
         }
 
-        private static async Task<long> AppendQueryToFile(string serverUrl, string query, string fileName)
+        private static async Task<string> AppendQueryToFile(string serverUrl, string query, string fileName)
         {
             long records = 0;
 
@@ -89,12 +92,11 @@ namespace FhirExport
                     if (link_type == "next")
                     {
                         Uri nextUri = new Uri(link_url);
-                        records += await AppendQueryToFile(serverUrl, nextUri.PathAndQuery, fileName);
-                        break;
+                        return nextUri.PathAndQuery;
                     }
                 }
 
-                return records;
+                return "";
             }
         }
 
