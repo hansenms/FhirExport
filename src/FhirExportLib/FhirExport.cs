@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
+using System.Net.Http.Headers;
 
 namespace FhirExport
 {
@@ -38,7 +39,11 @@ namespace FhirExport
 
     public class FhirQuery
     {
-        public static async Task<string> AppendQueryToFile(string serverUrl, string query, string fileName, FhirAuthenticator fhirAuth)
+        public static async Task<string> AppendQueryToFile(string serverUrl, 
+                                                           string query, 
+                                                           string fileName, 
+                                                           FhirAuthenticator fhirAuth, 
+                                                           Anonymizer anonymizer = null)
         {
             long records = 0;
 
@@ -52,11 +57,18 @@ namespace FhirExport
                 JObject bundle = JObject.Parse(await getResult.Content.ReadAsStringAsync());
                 JArray entries = (JArray)bundle["entry"];
 
-                for (int i = 0; i < entries.Count; i++)
+                if (entries != null) 
                 {
-                    string entry_json = (((JObject)entries[i])["resource"]).ToString(Formatting.None);
-                    AppendToFile(fileName, entry_json);
-                    records++;
+                    for (int i = 0; i < entries.Count; i++)
+                    {
+                        string entry_json = (((JObject)entries[i])["resource"]).ToString(Formatting.None);
+                        if (anonymizer != null)
+                        {
+                            entry_json = await anonymizer.AnonymizeDataAsync(entry_json);
+                        }
+                        AppendToFile(fileName, entry_json);
+                        records++;
+                    }
                 }
 
                 JArray links = (JArray)bundle["link"];
@@ -99,6 +111,47 @@ namespace FhirExport
             {
                 await outputBlob.UploadFromStreamAsync(fileStream);
             }
+        }
+    }
+
+    public class Anonymizer
+    {
+        private static string PresidioUrl { get; set; } 
+        private static string AnalyzeTemplateId { get; set; } 
+        private static string AnonymizeTemplateId { get; set; } 
+
+        public Anonymizer(string presidioUrl, string analyzeTemplateId, string anonimizeTemplateId)
+        {
+            PresidioUrl = presidioUrl;
+            AnalyzeTemplateId = analyzeTemplateId;
+            AnonymizeTemplateId = anonimizeTemplateId;
+        }
+
+        public async Task<string> AnonymizeDataAsync(string textToAnonymize)
+        {
+            using (var client = new HttpClient())
+            {
+                var presidioObjectString = JsonConvert.SerializeObject(new PresidioObject(AnalyzeTemplateId, AnonymizeTemplateId, textToAnonymize));
+                var content = new StringContent(presidioObjectString, Encoding.UTF8, "application/json");
+                content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+                HttpResponseMessage postResult = await client.PostAsync(PresidioUrl, content);
+                PresidioObject retObj = JsonConvert.DeserializeObject<PresidioObject>(await postResult.Content.ReadAsStringAsync());
+                return retObj.text;
+            }
+        }
+    }
+
+    public class PresidioObject
+    {
+        public string analyzeTemplateId { get; set; }
+        public string anonymizeTemplateId { get; set; }
+        public string text { get; set; }
+
+        public PresidioObject(string analyzeTemplateId, string anonymizeTemplateId, string text)
+        {
+            this.analyzeTemplateId = analyzeTemplateId;
+            this.anonymizeTemplateId = anonymizeTemplateId;
+            this.text = text;
         }
     }
 }

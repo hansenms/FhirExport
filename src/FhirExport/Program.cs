@@ -43,17 +43,30 @@ namespace FhirExport
             Console.WriteLine($"Output File             : {OutputFile}");
             Console.WriteLine($"Blob connection string  : {Configuration["StorageConnectionString"]}");
             Console.WriteLine($"Blob folder             : {Configuration["BlobFolder"]}");
-
+            Console.WriteLine($"PresidioUrl:            : {Configuration["PresidioUrl"]}");
+            Console.WriteLine($"AnalyzerTemplateId:     : {Configuration["AnalyzerTemplateId"]}");
+            Console.WriteLine($"AnonymizerTemplateId:   : {Configuration["AnonymizerTemplateId"]}");
 
             FhirAuth = new FhirAuthenticator(Configuration["AzureAD_Authority"], 
                                              Configuration["AzureAD_ClientId"], 
                                              Configuration["AzureAD_ClientSecret"], 
                                              Configuration["AzureAD_Audience"]);
 
+            Anonymizer anonymizer = null;
+
+            if (!String.IsNullOrEmpty(Configuration["PresidioUrl"]) &&
+                !String.IsNullOrEmpty(Configuration["AnalyzerTemplateId"]) &&
+                !String.IsNullOrEmpty(Configuration["AnonymizerTemplateId"]))
+            {
+                anonymizer = new Anonymizer(Configuration["PresidioUrl"], 
+                                            Configuration["AnalyzerTemplateId"],
+                                            Configuration["AnonymizerTemplateId"]);
+            }
+
             string query = Configuration["FhirQuery"];
             while (!String.IsNullOrEmpty(query)) 
             {
-                query = await FhirQuery.AppendQueryToFile(Configuration["FhirServerUrl"], query, OutputFile, FhirAuth);
+                query = await FhirQuery.AppendQueryToFile(Configuration["FhirServerUrl"], query, OutputFile, FhirAuth, anonymizer);
             }
 
             if (!String.IsNullOrEmpty(Configuration["StorageConnectionString"]) &&
