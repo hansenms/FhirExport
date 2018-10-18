@@ -64,10 +64,9 @@ namespace FhirExport
             }
 
             string query = Configuration["FhirQuery"];
-            while (!String.IsNullOrEmpty(query)) 
-            {
-                query = await FhirQuery.AppendQueryToFile(Configuration["FhirServerUrl"], query, OutputFile, FhirAuth, anonymizer);
-            }
+
+            FhirQuery fhirQuery = new FhirQuery(Configuration["FhirServerUrl"], OutputFile, FhirAuth, anonymizer);
+            fhirQuery.AppendQueryToFile(query);
 
             if (!String.IsNullOrEmpty(Configuration["StorageConnectionString"]) &&
                 !String.IsNullOrEmpty(Configuration["BlobFolder"]))

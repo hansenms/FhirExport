@@ -1,0 +1,39 @@
+{
+    "type": "Custom",
+    "name": "MyCustomActivity",
+    "linkedServiceName": {
+      "referenceName": "AzureBatchLinkedService",
+      "type": "LinkedServiceReference"
+    },
+    "typeProperties": {
+      "command": "SampleApp.exe",
+      "folderPath": "customactv2/SampleApp",
+      "resourceLinkedService": {
+        "referenceName": "StorageLinkedService",
+        "type": "LinkedServiceReference"
+      },
+      "referenceObjects": {
+        "linkedServices": [{
+          "referenceName": "AzureBatchLinkedService",
+          "type": "LinkedServiceReference"
+        }]
+      },
+      "extendedProperties": {
+          "AzureAD_Authority": "https://login.microsoftonline.com/microsoft.onmicrosoft.com",
+          "AzureAD_ClientId": "",
+          "AzureAD_ClientSecret": {
+            "type": "SecureString",
+            "value": ""
+          },
+          "AzureAD_Audience": "https://microsoft.onmicrosoft.com/resolute-test.cloud",
+          "StorageConnectionString": {
+            "type": "SecureString",
+            "value": ""
+          },
+          "BlobFolder": "fhirexporttest",
+          "FhirServerUrl": "",
+          "FhirQuery": "/Patient",
+          "OutputFile": "patients.json"              
+      }
+    }
+  }

@@ -2,15 +2,17 @@
 using System.IO;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Microsoft.Extensions.Configuration;
-
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using System.Net.Http.Headers;
+
 
 namespace FhirExport
 {
@@ -39,39 +41,50 @@ namespace FhirExport
 
     public class FhirQuery
     {
-        public static async Task<string> AppendQueryToFile(string serverUrl, 
-                                                           string query, 
-                                                           string fileName, 
-                                                           FhirAuthenticator fhirAuth, 
-                                                           Anonymizer anonymizer = null)
+
+        private Mutex FileMutex { get; set; }
+        private string ServerUrl { get; set; }
+        private string FileName { get; set; }
+        private FhirAuthenticator FhirAuth { get; set; }
+        private Anonymizer Anom { get; set; }
+        private ActionBlock<string> QueryQueue { get; set; }
+
+        public FhirQuery(string serverUrl, string outFileName, FhirAuthenticator fhirAuthenticator, Anonymizer anonymizer = null, int parallel = 4)
+        {
+            FileMutex = new Mutex();
+            ServerUrl = serverUrl;
+            FileName = outFileName;
+            FhirAuth = fhirAuthenticator;
+            Anom = anonymizer;
+
+            QueryQueue = new ActionBlock<string>(s => AppendQueryToFileWorker(s), 
+                new ExecutionDataflowBlockOptions {
+                    MaxDegreeOfParallelism = parallel
+            });
+        }
+
+        public void AppendQueryToFile(string query)
+        {
+            QueryQueue.Post(query);
+            QueryQueue.Completion.Wait();
+        }
+
+        public async Task AppendQueryToFileWorker(string query)
         {
             long records = 0;
 
             using (var client = new HttpClient())
             {
-                client.BaseAddress = new Uri(serverUrl);
-                client.DefaultRequestHeaders.Add("Authorization", "Bearer " + fhirAuth.GetAuthenticationResult().AccessToken);
+                client.BaseAddress = new Uri(ServerUrl);
+                client.DefaultRequestHeaders.Add("Authorization", "Bearer " + FhirAuth.GetAuthenticationResult().AccessToken);
 
                 HttpResponseMessage getResult = getResult = await client.GetAsync(query);
 
                 JObject bundle = JObject.Parse(await getResult.Content.ReadAsStringAsync());
                 JArray entries = (JArray)bundle["entry"];
 
-                if (entries != null) 
-                {
-                    for (int i = 0; i < entries.Count; i++)
-                    {
-                        string entry_json = (((JObject)entries[i])["resource"]).ToString(Formatting.None);
-                        if (anonymizer != null)
-                        {
-                            entry_json = await anonymizer.AnonymizeDataAsync(entry_json);
-                        }
-                        AppendToFile(fileName, entry_json);
-                        records++;
-                    }
-                }
-
                 JArray links = (JArray)bundle["link"];
+                string nextQuery = "";
                 for (int i = 0; i < links.Count; i++)
                 {
                     string link_type = (string)(bundle["link"][i]["relation"]);
@@ -80,20 +93,45 @@ namespace FhirExport
                     if (link_type == "next")
                     {
                         Uri nextUri = new Uri(link_url);
-                        return nextUri.PathAndQuery;
+                        nextQuery = nextUri.PathAndQuery;
+                        break;
                     }
                 }
 
-                return "";
+                if (!String.IsNullOrEmpty(nextQuery))
+                {
+                    QueryQueue.Post(nextQuery);
+                }
+
+                if (entries != null) 
+                {
+                    for (int i = 0; i < entries.Count; i++)
+                    {
+                        string entry_json = (((JObject)entries[i])["resource"]).ToString(Formatting.None);
+                        if (Anom != null)
+                        {
+                            entry_json = await Anom.AnonymizeDataAsync(entry_json);
+                        }
+                        AppendToFile(FileName, entry_json);
+                        records++;
+                    }
+                }
+
+                if (String.IsNullOrEmpty(nextQuery))
+                {
+                    QueryQueue.Complete();
+                }
             }
         }
 
-        private static void AppendToFile(string fileName, string appendString)
+        private void AppendToFile(string fileName, string appendString)
         {
+            FileMutex.WaitOne();
             using (StreamWriter w = File.AppendText(fileName))
             {
                 w.WriteLine(appendString);
             }
+            FileMutex.ReleaseMutex();
         }
     }
 
