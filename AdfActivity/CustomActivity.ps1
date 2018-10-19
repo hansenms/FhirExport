@@ -16,9 +16,9 @@ Unzip $zippath $directorypath
 
 $auth = $activityProps.AzureAD_Authority
 $clientId = $activityProps.AzureAD_ClientId
-$clientSecret = $activityProps.AzureAD_ClientSecret.value
+$clientSecret = $activityProps.AzureAD_ClientSecret
 $aud = $activityProps.AzureAD_Audience
-$con = $activityProps.StorageAccountConnectionString.value
+$con = $activityProps.StorageConnectionString
 $folder = $activityProps.BlobFolder
 $fhirServerUrl = $activityProps.FhirServerUrl
 $fhirQuery = $activityProps.FhirQuery

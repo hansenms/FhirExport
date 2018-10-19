@@ -21,15 +21,9 @@
       "extendedProperties": {
           "AzureAD_Authority": "https://login.microsoftonline.com/microsoft.onmicrosoft.com",
           "AzureAD_ClientId": "",
-          "AzureAD_ClientSecret": {
-            "type": "SecureString",
-            "value": ""
-          },
+          "AzureAD_ClientSecret": "",
           "AzureAD_Audience": "https://microsoft.onmicrosoft.com/resolute-test.cloud",
-          "StorageConnectionString": {
-            "type": "SecureString",
-            "value": ""
-          },
+          "StorageConnectionString": "",
           "BlobFolder": "fhirexporttest",
           "FhirServerUrl": "",
           "FhirQuery": "/Patient",

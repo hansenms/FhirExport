@@ -142,6 +142,11 @@ namespace FhirExport
                                             string filePath)
         {
             CloudStorageAccount outputStorageAccount = CloudStorageAccount.Parse(blobConnectionString);
+            CloudBlobClient cloudBlobClient = outputStorageAccount.CreateCloudBlobClient();
+
+            var cloudBlobContainer = cloudBlobClient.GetContainerReference(blobFolderPath);
+            await cloudBlobContainer.CreateIfNotExistsAsync();
+
             var fileName = Path.GetFileName(filePath);
             var outputBlobUri = new Uri(outputStorageAccount.BlobEndpoint + blobFolderPath + "/" + fileName);
             var outputBlob = new CloudBlockBlob(outputBlobUri, outputStorageAccount.Credentials);
